@@ -4,13 +4,14 @@
 
 #include <Windows.h>
 #include <gl\GL.h>
-#include <gl\GLU.h>
 
 LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam);
 bool WindowCreate();
 void WindowKill();
 void SceneResize(GLsizei width, GLsizei height);
 void SceneDraw();
+
+void PrepareBuffer();
 
 static HGLRC rc = nullptr; // rendering context
 static HDC dc = nullptr; // GDI device context
@@ -23,9 +24,13 @@ const int windowHeight = 200;
 const wchar_t* windowClass = L"OpenGL";
 const static UINT_PTR IDT_TIMER1 = 1;
 
+GLubyte rgbBuffer[windowWidth * windowHeight * 3] = {0};
+
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
 {
 	appInstance = instance;
+
+	PrepareBuffer();
 
 	if (!WindowCreate())
 		return 0;
@@ -100,14 +105,26 @@ void SceneResize(GLsizei width, GLsizei height)
 void SceneDraw()
 {
 	glClear(GL_COLOR_BUFFER_BIT);
-	glBegin(GL_TRIANGLES);
-	glColor3f(0.0f, 0.0f, 1.0f); // blue
+
+	glEnable(GL_TEXTURE_2D);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, windowWidth, windowHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, rgbBuffer);
+
+	glBegin(GL_QUADS);
+	glTexCoord2f(0.0f, 1.0f);
 	glVertex2i(0, 0);
-	glColor3f(0.0f, 1.0f, 0.0f); //green
-	glVertex2i(320, 200);
-	glColor3f(1.0f, 0.0f, 0.0f); // red
-	glVertex2i(0, 200);
+	glTexCoord2f(1.0f, 1.0f);
+	glVertex2i(windowWidth, 0);
+	glTexCoord2f(1, 0);
+	glVertex2i(windowWidth, windowHeight);
+	glTexCoord2f(0.0f, 0.0f);
+	glVertex2i(0, windowHeight);
 	glEnd();
+
+	glDisable(GL_TEXTURE_2D);
+
 	glFlush();
 }
 
@@ -259,4 +276,28 @@ bool WindowCreate()
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
 	return true;
+}
+
+void PrepareBuffer()
+{
+	// just some test data... later, we'll implement transformation from 0xa0000 VGA framebuffer
+	GLubyte *p = rgbBuffer;
+	for (int i = 0; i < windowWidth * 66; ++i)
+	{
+		*p++ = 0x00;
+		*p++ = 0x00;
+		*p++ = 0xff;
+	}
+	for (int i = 0; i < windowWidth * 68; ++i)
+	{
+		*p++ = 0xff;
+		*p++ = 0xff;
+		*p++ = 0xff;
+	}
+	for (int i = 0; i < windowWidth * 66; ++i)
+	{
+		*p++ = 0xff;
+		*p++ = 0x00;
+		*p++ = 0x00;
+	}
 }
