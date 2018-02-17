@@ -87,19 +87,28 @@ void SceneResize(GLsizei width, GLsizei height)
 {
 	if (height == 0)
 		height = 1;
+	// make it so that scene covers the whole drawable area
+	// and the scene coordinates match to window coordinates
 	glViewport(0, 0, width, height);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(45.0, static_cast<GLdouble>(width) / static_cast<GLdouble>(height), 0.1, 100.0);
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
+	glOrtho(0.0, width, 0.0, height, -1.0, 1.0);
+	glScalef(1.0f, -1.0f, 1.0f);
+	glTranslatef(0.0f, -height, 0.0f);
 }
 
 void SceneDraw()
 {
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glLoadIdentity();
-	// TODO draw
+	glClear(GL_COLOR_BUFFER_BIT);
+	glBegin(GL_TRIANGLES);
+	glColor3f(0.0f, 0.0f, 1.0f); // blue
+	glVertex2i(0, 0);
+	glColor3f(0.0f, 1.0f, 0.0f); //green
+	glVertex2i(320, 200);
+	glColor3f(1.0f, 0.0f, 0.0f); // red
+	glVertex2i(0, 200);
+	glEnd();
+	glFlush();
 }
 
 void WindowKill()
@@ -138,7 +147,7 @@ bool WindowCreate()
 	windowRectangle.left = 0;
 	windowRectangle.right = windowWidth;
 	windowRectangle.top = 0;
-	windowRectangle.bottom = windowWidth;
+	windowRectangle.bottom = windowHeight;
 
 	wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC; // redraw on move, own DC for window
 	wc.lpfnWndProc = WindowProc;
@@ -247,12 +256,7 @@ bool WindowCreate()
 	SetFocus(w);
 	SceneResize(windowWidth, windowHeight);
 
-	glShadeModel(GL_SMOOTH);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glClearDepth(1.0f);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
-	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
 	return true;
 }
