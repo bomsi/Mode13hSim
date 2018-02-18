@@ -2,6 +2,9 @@
 #define UNICODE
 #endif
 
+#define RESOLUTION_W 320
+#define RESOLUTION_H 200
+
 #include <Windows.h>
 #include <gl\GL.h>
 
@@ -19,12 +22,13 @@ static HWND w = nullptr; // window
 static HINSTANCE appInstance = nullptr; // application instance
 static bool active; // is app visible or minimized?
 
-const int windowWidth = 320;
-const int windowHeight = 200;
 const wchar_t* windowClass = L"OpenGL";
 const static UINT_PTR IDT_TIMER1 = 1;
 
-GLubyte rgbBuffer[windowWidth * windowHeight * 3] = {0};
+static int windowWidth = RESOLUTION_W;
+static int windowHeight = RESOLUTION_H;
+
+GLubyte rgbBuffer[RESOLUTION_W * RESOLUTION_H * 3] = {0};
 
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
 {
@@ -100,6 +104,9 @@ void SceneResize(GLsizei width, GLsizei height)
 	glOrtho(0.0, width, 0.0, height, -1.0, 1.0);
 	glScalef(1.0f, -1.0f, 1.0f);
 	glTranslatef(0.0f, -height, 0.0f);
+
+	windowWidth = width;
+	windowHeight = height;
 }
 
 void SceneDraw()
@@ -110,14 +117,14 @@ void SceneDraw()
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, windowWidth, windowHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, rgbBuffer);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, RESOLUTION_W, RESOLUTION_H, 0, GL_RGB, GL_UNSIGNED_BYTE, rgbBuffer);
 
 	glBegin(GL_QUADS);
 	glTexCoord2f(0.0f, 1.0f);
 	glVertex2i(0, 0);
 	glTexCoord2f(1.0f, 1.0f);
 	glVertex2i(windowWidth, 0);
-	glTexCoord2f(1, 0);
+	glTexCoord2f(1.0f, 0.0f);
 	glVertex2i(windowWidth, windowHeight);
 	glTexCoord2f(0.0f, 0.0f);
 	glVertex2i(0, windowHeight);
@@ -162,9 +169,9 @@ bool WindowCreate()
 	WNDCLASS wc;
 	RECT windowRectangle;
 	windowRectangle.left = 0;
-	windowRectangle.right = windowWidth;
+	windowRectangle.right = RESOLUTION_W;
 	windowRectangle.top = 0;
-	windowRectangle.bottom = windowHeight;
+	windowRectangle.bottom = RESOLUTION_H;
 
 	wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC; // redraw on move, own DC for window
 	wc.lpfnWndProc = WindowProc;
@@ -271,7 +278,7 @@ bool WindowCreate()
 	ShowWindow(w, SW_SHOW);
 	SetForegroundWindow(w);
 	SetFocus(w);
-	SceneResize(windowWidth, windowHeight);
+	SceneResize(RESOLUTION_W, RESOLUTION_H);
 
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -282,19 +289,19 @@ void PrepareBuffer()
 {
 	// just some test data... later, we'll implement transformation from 0xa0000 VGA framebuffer
 	GLubyte *p = rgbBuffer;
-	for (int i = 0; i < windowWidth * 66; ++i)
+	for (int i = 0; i < RESOLUTION_W * 66; ++i)
 	{
 		*p++ = 0x00;
 		*p++ = 0x00;
 		*p++ = 0xff;
 	}
-	for (int i = 0; i < windowWidth * 68; ++i)
+	for (int i = 0; i < RESOLUTION_W * 68; ++i)
 	{
 		*p++ = 0xff;
 		*p++ = 0xff;
 		*p++ = 0xff;
 	}
-	for (int i = 0; i < windowWidth * 66; ++i)
+	for (int i = 0; i < RESOLUTION_W * 66; ++i)
 	{
 		*p++ = 0xff;
 		*p++ = 0x00;
