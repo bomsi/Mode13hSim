@@ -4,9 +4,12 @@
 
 #define RESOLUTION_W 320
 #define RESOLUTION_H 200
+#define WINDOWCLASS L"OpenGL"
 
 #include <Windows.h>
 #include <gl\GL.h>
+#include <cwchar>
+#include <cassert>
 
 LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam);
 bool WindowCreate();
@@ -14,7 +17,9 @@ void WindowKill();
 void SceneResize(GLsizei width, GLsizei height);
 void SceneDraw();
 
-void PrepareBuffer();
+void TransformVgaToRgb(unsigned char* vgaBuffer);
+
+void ExampleDrawing();
 
 static HGLRC rc = nullptr; // rendering context
 static HDC dc = nullptr; // GDI device context
@@ -22,19 +27,20 @@ static HWND w = nullptr; // window
 static HINSTANCE appInstance = nullptr; // application instance
 static bool active; // is app visible or minimized?
 
-const wchar_t* windowClass = L"OpenGL";
 const static UINT_PTR IDT_TIMER1 = 1;
 
 static int windowWidth = RESOLUTION_W;
 static int windowHeight = RESOLUTION_H;
 
-GLubyte rgbBuffer[RESOLUTION_W * RESOLUTION_H * 3] = {0};
+static unsigned char exampleVgaBuffer[RESOLUTION_W * RESOLUTION_H] = { 0 };
+static GLubyte rgbBuffer[RESOLUTION_W * RESOLUTION_H * 3] = { 0 };
 
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
 {
 	appInstance = instance;
 
-	PrepareBuffer();
+	ExampleDrawing();
+	TransformVgaToRgb(exampleVgaBuffer);
 
 	if (!WindowCreate())
 		return 0;
@@ -107,6 +113,9 @@ void SceneResize(GLsizei width, GLsizei height)
 
 	windowWidth = width;
 	windowHeight = height;
+	wchar_t windowTitle[31] = {0};
+	wsprintf(windowTitle, L"Mode 13h Simulator %dx%d", width, height);
+	SetWindowText(w, windowTitle);
 }
 
 void SceneDraw()
@@ -157,7 +166,7 @@ void WindowKill()
 		MessageBox(nullptr, L"Could not destroy window.", title, MB_OK | MB_ICONEXCLAMATION);
 		w = nullptr;
 	}
-	if (!UnregisterClass(windowClass, appInstance))
+	if (!UnregisterClass(WINDOWCLASS, appInstance))
 	{
 		MessageBox(nullptr, L"Could not unregister the window class.", title, MB_OK | MB_ICONEXCLAMATION);
 		appInstance = nullptr;
@@ -182,7 +191,7 @@ bool WindowCreate()
 	wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
 	wc.hbrBackground = nullptr;
 	wc.lpszMenuName = nullptr;
-	wc.lpszClassName = windowClass;
+	wc.lpszClassName = WINDOWCLASS;
 
 	const wchar_t* title = L"WindowCreate";
 	if (!RegisterClass(&wc))
@@ -196,7 +205,7 @@ bool WindowCreate()
 
 	w = CreateWindowEx(
 		WS_EX_APPWINDOW | WS_EX_WINDOWEDGE,
-		windowClass,
+		WINDOWCLASS,
 		L"Mode 13h Simulator",
 		WS_OVERLAPPEDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
 		CW_USEDEFAULT,
@@ -285,26 +294,141 @@ bool WindowCreate()
 	return true;
 }
 
-void PrepareBuffer()
+void TransformVgaToRgb(unsigned char* vgaBuffer)
 {
-	// just some test data... later, we'll implement transformation from 0xa0000 VGA framebuffer
-	GLubyte *p = rgbBuffer;
-	for (int i = 0; i < RESOLUTION_W * 66; ++i)
+	unsigned char *p = vgaBuffer;
+	GLubyte *q = rgbBuffer;
+
+	for (int i = 0; i < RESOLUTION_W * RESOLUTION_H; ++i)
 	{
-		*p++ = 0x00;
-		*p++ = 0x00;
-		*p++ = 0xff;
-	}
-	for (int i = 0; i < RESOLUTION_W * 68; ++i)
-	{
-		*p++ = 0xff;
-		*p++ = 0xff;
-		*p++ = 0xff;
-	}
-	for (int i = 0; i < RESOLUTION_W * 66; ++i)
-	{
-		*p++ = 0xff;
-		*p++ = 0x00;
-		*p++ = 0x00;
+		// currently, custom color pallette is not supported... only the first 16 VGA colors (default)
+
+		switch (*p)
+		{
+		case 0x00: // black
+			*q++ = 0x00; *q++ = 0x00; *q++ = 0x00;
+			break;
+		case 0x01: // blue
+			*q++ = 0x00; *q++ = 0x00; *q++ = 0x80;
+			break;
+		case 0x02: // green
+			*q++ = 0x00; *q++ = 0x80; *q++ = 0x00;
+			break;
+		case 0x03: // cyan
+			*q++ = 0x00; *q++ = 0x80; *q++ = 0x80;
+			break;
+		case 0x04: // red
+			*q++ = 0x80; *q++ = 0x00; *q++ = 0x00;
+			break;
+		case 0x05: // magenta
+			*q++ = 0x80; *q++ = 0x00; *q++ = 0x80;
+			break;
+		case 0x06: // brown
+			*q++ = 0x80; *q++ = 0x80; *q++ = 0x00;
+			break;
+		case 0x07: // light gray
+			*q++ = 0xc0; *q++ = 0xc0; *q++ = 0xc0;
+			break;
+		case 0x08: // dark gray
+			*q++ = 0x80; *q++ = 0x80; *q++ = 0x80;
+			break;
+		case 0x09: // light blue
+			*q++ = 0x00; *q++ = 0x00; *q++ = 0xff;
+			break;
+		case 0x0a: // light green
+			*q++ = 0x00; *q++ = 0xff; *q++ = 0x00;
+			break;
+		case 0x0b: // light cyan
+			*q++ = 0x00; *q++ = 0xff; *q++ = 0xff;
+			break;
+		case 0x0c: // light red
+			*q++ = 0xff; *q++ = 0x00; *q++ = 0x00;
+			break;
+		case 0x0d: // light magenta
+			*q++ = 0xff; *q++ = 0x00; *q++ = 0xff;
+			break;
+		case 0x0e: // yellow
+			*q++ = 0xff; *q++ = 0xff; *q++ = 0x00;
+			break;
+		case 0x0f: // white
+			*q++ = 0xff; *q++ = 0xff; *q++ = 0xff;
+			break;
+		default:
+			assert(0);
+		}
+
+		++p;
 	}
 }
+
+// To avoid multiplication we use: 320 * y = 256 * y + 64 * y = 2^8 * y + 2^6 * y
+#define PlotPixel(vga, x, y, color) vga[(y << 8) + (y << 6) + x] = color
+
+template <typename T> int sgn(T value)
+{
+	return (T(0) < value) - (value < T(0));
+}
+
+/* Bresenham's line algorithm */
+void PlotLine(int x0, int y0, int x1, int y1, unsigned char color)
+{
+	assert(x0 >= 0 && x0 < 320);
+	assert(x1 >= 0 && x1 < 320);
+	assert(y0 >= 0 && y0 < 200);
+	assert(y1 >= 0 && y1 < 200);
+
+	const int dx = x1 - x0;
+	const int dy = y1 - y0;
+	const int dxabs = abs(dx);
+	const int dyabs = abs(dy);
+	const int sdx = sgn(dx);
+	const int sdy = sgn(dy);
+	int x = dyabs >> 1;
+	int y = dxabs >> 1;
+	int px = x0;
+	int py = y0;
+
+	PlotPixel(exampleVgaBuffer, px, py, color);
+
+	if (dxabs >= dyabs) // the line is more horizontal than vertical
+	{
+		for (int i = 0; i < dxabs; ++i)
+		{
+			y += dyabs;
+			if (y >= dxabs)
+			{
+				y -= dxabs;
+				py += sdy;
+			}
+			px += sdx;
+			PlotPixel(exampleVgaBuffer, px, py, color);
+		}
+	}
+	else // the line is more vertical than horizontal
+	{
+		for (int i = 0; i < dyabs; ++i)
+		{
+			x += dxabs;
+			if (x >= dyabs)
+			{
+				x -= dyabs;
+				px += sdx;
+			}
+			py += sdy;
+			PlotPixel(exampleVgaBuffer, px, py, color);
+		}
+	}
+}
+
+void ExampleDrawing()
+{
+	// green
+	PlotLine(0, 100, 319, 100, 0x0a);
+	// cyan
+	PlotLine(160, 0, 160, 199, 0x0b);
+	// red
+	PlotLine(0, 0, 319, 199, 0x0c);
+	// magenta
+	PlotLine(0, 199, 319, 0, 0x0d);
+}
+
